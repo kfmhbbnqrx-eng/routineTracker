@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Routine Tracker & Calendar</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --primary: #4a90e2;
+            --success: #2ec4b6;
+            --danger: #ff4d4d;
+            --border: #e1e5eb;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        h2 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .time-range-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .time-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-weight: bold;
+        }
+
+        input[type="text"], input[type="time"], select {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        input[type="text"] { flex-grow: 1; }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: #357abd; }
+        
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: #24a195; }
+        
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: #e03d3d; }
+
+        .filter-btn-group {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .filter-btn {
+            background-color: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .filter-btn.active {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        li {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--bg-color);
+            gap: 10px;
+        }
+
+        .checked {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        .time-badge {
+            background: #eef2f7;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #4a5568;
+            white-space: nowrap;
+        }
+
+        .duration-badge {
+            background: #e1f5fe;
+            color: #0288d1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background-color: #f8f9fa;
+            color: #2c3e50;
+        }
+
+        /* Calendar Styles */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            text-align: center;
+        }
+
+        .weekday {
+            font-weight: bold;
+            color: #7f8c8d;
+            padding: 5px 0;
+        }
+
+        .day {
+            padding: 15px 0;
+            background: #f8f9fa;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .day:hover {
+            background: #e9ecef;
+            border-color: var(--primary);
+        }
+
+        .day.has-history {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .day.selected {
+            background: var(--primary) !important;
+            color: white !important;
+        }
+
+        .day.empty {
+            background: transparent;
+            cursor: default;
+        }
+
+        #historyDisplay {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid var(--primary);
+            border-radius: 0 4px 4px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div class="card">
+        <h2>1. Master Routine Items</h2>
+        <div class="input-group">
+            <input type="text" id="masterInput" placeholder="Add a routine item (e.g., Gym, Studying)">
+            <button onclick="addMasterItem()">Add</button>
+        </div>
+        <ul id="masterList"></ul>
+    </div>
+
+    <div class="card">
+        <h2>2. Today's Tracker</h2>
+        <div class="input-group">
+            <select id="scheduleSelect" style="flex-grow: 1; min-width: 150px;"></select>
+            
+            <div class="time-range-group">
+                <span class="time-label">From:</span>
+                <input type="time" id="scheduleTimeFrom">
+            </div>
+            
+            <div class="time-range-group">
+                <span class="time-label">To:</span>
+                <input type="time" id="scheduleTimeTo">
+            </div>
+            
+            <button onclick="addActiveTask()">Schedule</button>
+        </div>
+        <ul id="activeList"></ul>
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border);">
+        <button class="btn-success" style="width: 100%; padding: 12px;" onclick="endDay()">🔒 End Day & Save to Calendar</button>
+        <button class="btn-danger" style="width: 100%; padding: 8px; margin-top: 10px;" onclick="wipeEverything()">⚠️ Clear All Data & Reset</button>
+    </div>
+
+    <div class="card full-width">
+        <h2>3. Routine History Calendar</h2>
+        <div class="calendar-header">
+            <button onclick="changeMonth(-1)">◀ Prev</button>
+            <h3 id="calendarMonthYear"></h3>
+            <button onclick="changeMonth(1)">Next ▶</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        
+        <div id="historyDisplay" style="display: none;">
+            <h4 id="historyDateTitle" style="margin: 0 0 10px 0;"></h4>
+            <ul id="historyItems"></ul>
+        </div>
+    </div>
+
+    <div class="card full-width">
+        <h2>4. Task Duration Analytics Sheet</h2>
+        <div class="filter-btn-group">
+            <button id="filterWeekBtn" class="filter-btn active" onclick="setAnalyticsFilter('week')">This Week</button>
+            <button id="filterMonthBtn" class="filter-btn" onclick="setAnalyticsFilter('month')">This Month</button>
+        </div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Routine Task Item</th>
+                        <th>Total Logged Time</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="analyticsTableBody">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let masterItems = JSON.parse(localStorage.getItem('masterItems')) || [];
+    let activeTasks = JSON.parse(localStorage.getItem('activeTasks')) || [];
+    let historyLog = JSON.parse(localStorage.getItem('historyLog')) || {}; 
+
+    let currentNavDate = new Date();
+    let currentAnalyticsFilter = 'week'; // 'week' or 'month'
+
+    function init() {
+        renderMasterList();
+        renderActiveList();
+        renderCalendar();
+        renderAnalyticsSheet();
+    }
+
+    // Convert standard 24h input format ("14:30") to 12h display strings ("2:30pm")
+    function formatTimeDisplay(timeStr) {
+        if (!timeStr) return "";
+        let [hours, minutes] = timeStr.split(':').map(Number);
+        const ampm = hours >= 12 ? 'pm' : 'am';
+        hours = hours % 12 || 12;
+        const minutesStr = minutes === 0 ? '' : ':' + String(minutes).padStart(2, '0');
+        return `${hours}${minutesStr}${ampm}`;
+    }
+
+    // Calculates the difference between two time strings in minutes
+    function calculateDurationMinutes(fromStr, toStr) {
+        if (!fromStr || !toStr || fromStr === "99:99" || toStr === "99:99") return 0;
+        let [fromH, fromM] = fromStr.split(':').map(Number);
+        let [toH, toM] = toStr.split(':').map(Number);
+        
+        let fromTotal = (fromH * 60) + fromM;
+        let toTotal = (toH * 60) + toM;
+        
+        // Handle overnight logging edge cases safely
+        if (toTotal < fromTotal) {
+            toTotal += 24 * 60; 
+        }
+        return toTotal - fromTotal;
+    }
+
+    // Format minute blocks back into human phrases like "2h 15m"
+    function formatMinutesToText(totalMinutes) {
+        if (totalMinutes <= 0) return "0m";
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        return `${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm' : ''}`.trim();
+    }
+
+    // --- Master Item Functions ---
+    function addMasterItem() {
+        const input = document.getElementById('masterInput');
+        const text = input.value.trim();
+        if (!text) return;
+        
+        masterItems.push(text);
+        localStorage.setItem('masterItems', JSON.stringify(masterItems));
+        input.value = '';
+        renderMasterList();
+    }
+
+    function renderMasterList() {
+        const list = document.getElementById('masterList');
+        const select = document.getElementById('scheduleSelect');
+        list.innerHTML = '';
+        select.innerHTML = '<option value="" disabled selected>Select an item...</option>';
+
+        masterItems.forEach((item, index) => {
+            list.innerHTML += `<li>${item} <button style="margin-left:auto; background:#ff4d4d; padding:2px 8px;" onclick="deleteMaster(${index})">X</button></li>`;
+            select.innerHTML += `<option value="${item}">${item}</option>`;
+        });
+    }
+
+    function deleteMaster(index) {
+        masterItems.splice(index, 1);
+        localStorage.setItem('masterItems', JSON.stringify(masterItems));
+        renderMasterList();
+    }
+
+    // --- Today's Active Tracking Functions ---
+    function addActiveTask() {
+        const select = document.getElementById('scheduleSelect');
+        const timeFrom = document.getElementById('scheduleTimeFrom');
+        const timeTo = document.getElementById('scheduleTimeTo');
+        
+        if (!select.value) return;
+
+        const rawFrom = timeFrom.value || "99:99";
+        const rawTo = timeTo.value || "99:99";
+        const duration = calculateDurationMinutes(timeFrom.value, timeTo.value);
+
+        activeTasks.push({
+            name: select.value,
+            rawTime: rawFrom, 
+            rawTo: rawTo,
+            timeDisplay: timeFrom.value && timeTo.value ? 
+                `${formatTimeDisplay(timeFrom.value)} - ${formatTimeDisplay(timeTo.value)}` : "No Time Range Set",
+            durationMinutes: duration,
+            completed: false
+        });
+
+        // Chronological sorting by structural 'From' value
+        activeTasks.sort((a, b) => a.rawTime.localeCompare(b.rawTime));
+
+        localStorage.setItem('activeTasks', JSON.stringify(activeTasks));
+        timeFrom.value = '';
+        timeTo.value = '';
+        renderActiveList();
+    }
+
+    function renderActiveList() {
+        const list = document.getElementById('activeList');
+        list.innerHTML = '';
+
+        activeTasks.forEach((task, index) => {
+            const durationTxt = task.durationMinutes > 0 ? `<span class="duration-badge">${formatMinutesToText(task.durationMinutes)}</span>` : '';
+            list.innerHTML += `
+                <li>
+                    <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask(${index})">
+                    <span class="${task.completed ? 'checked' : ''}">${task.name}</span>
+                    <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                        ${durationTxt}
+                        <span class="time-badge">${task.timeDisplay}</span>
+                    </div>
+                </li>
+            `;
+        });
+    }
+
+    function toggleTask(index) {
+        activeTasks[index].completed = !activeTasks[index].completed;
+        localStorage.setItem('activeTasks', JSON.stringify(activeTasks));
+        renderActiveList();
+        renderAnalyticsSheet(); // Live calculation updates if task status changes
+    }
+
+    // --- Saving History & Ending the Day ---
+    function endDay() {
+        if (activeTasks.length === 0) {
+            alert("You don't have any scheduled tasks tracking right now!");
+            return;
+        }
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        
+        historyLog[todayStr] = [...activeTasks];
+        localStorage.setItem('historyLog', JSON.stringify(historyLog));
+
+        activeTasks = [];
+        localStorage.setItem('activeTasks', JSON.stringify(activeTasks));
+        
+        alert("Day logged successfully! Today's layout moved into history logs.");
+        renderActiveList();
+        renderCalendar();
+        renderAnalyticsSheet();
+    }
+
+    function wipeEverything() {
+        if (confirm("Are you absolutely sure you want to delete all master items, history logs, and current tracking? This cannot be undone.")) {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+
+    // --- Calendar System ---
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        const monthYearTitle = document.getElementById('calendarMonthYear');
+        grid.innerHTML = '';
+
+        const year = currentNavDate.getFullYear();
+        const month = currentNavDate.getMonth();
+
+        monthYearTitle.innerText = currentNavDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+        const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        weekdays.forEach(day => grid.innerHTML += `<div class="weekday">${day}</div>`);
+
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const totalDays = new Date(year, month + 1, 0).getDate();
+
+        for (let i = 0; i < firstDayIndex; i++) {
+            grid.innerHTML += `<div class="day empty"></div>`;
+        }
+
+        for (let day = 1; day <= totalDays; day++) {
+            const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const hasData = historyLog[dateString] ? 'has-history' : '';
+            
+            grid.innerHTML += `
+                <div class="day ${hasData}" id="day-${dateString}" onclick="viewDayHistory('${dateString}')">
+                    ${day}
+                </div>
+            `;
+        }
+    }
+
+    function changeMonth(direction) {
+        currentNavDate.setMonth(currentNavDate.getMonth() + direction);
+        renderCalendar();
+        document.getElementById('historyDisplay').style.display = 'none';
+    }
+
+    function viewDayHistory(dateStr) {
+        document.querySelectorAll('.day').forEach(el => el.classList.remove('selected'));
+        const dayEl = document.getElementById(`day-${dateStr}`);
+        if(dayEl) dayEl.classList.add('selected');
+
+        const displayArea = document.getElementById('historyDisplay');
+        const title = document.getElementById('historyDateTitle');
+        const list = document.getElementById('historyItems');
+        
+        const formattedDate = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        title.innerText = formattedDate;
+        list.innerHTML = '';
+        displayArea.style.display = 'block';
+
+        const dayData = historyLog[dateStr];
+
+        if (!dayData || dayData.length === 0) {
+            list.innerHTML = '<li><i>No saved records found for this date.</i></li>';
+            return;
+        }
+
+        dayData.forEach(task => {
+            const durationTxt = task.durationMinutes > 0 ? `<span class="duration-badge">${formatMinutesToText(task.durationMinutes)}</span>` : '';
+            list.innerHTML += `
+                <li>
+                    <span>${task.completed ? '✅' : '❌'}</span>
+                    <span class="${task.completed ? 'checked' : ''}">${task.name}</span>
+                    <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                        ${durationTxt}
+                        <span class="time-badge">${task.timeDisplay}</span>
+                    </div>
+                </li>
+            `;
+        });
+    }
+
+    // --- Analytics Matrix Processor Sheet ---
+    function setAnalyticsFilter(mode) {
+        currentAnalyticsFilter = mode;
+        document.getElementById('filterWeekBtn').classList.toggle('active', mode === 'week');
+        document.getElementById('filterMonthBtn').classList.toggle('active', mode === 'month');
+        renderAnalyticsSheet();
+    }
+
+    function renderAnalyticsSheet() {
+        const tbody = document.getElementById('analyticsTableBody');
+        tbody.innerHTML = '';
+
+        // Generate map framework for tasks totals
+        let summarySheet = {};
+        masterItems.forEach(item => summarySheet[item] = 0);
+
+        const today = new Date();
+        
+        // Scan internal historical log storage boundaries
+        Object.keys(historyLog).forEach(dateStr => {
+            const logDate = new Date(dateStr + 'T00:00:00');
+            let matchRange = false;
+
+            if (currentAnalyticsFilter === 'month') {
+                // Check if structural date falls into current active calendar month bounds
+                if (logDate.getMonth() === today.getMonth() && logDate.getFullYear() === today.getFullYear()) {
+                    matchRange = true;
+                }
+            } else {
+                // Week calculations (Last 7 days bounding matrix)
+                const timeDiff = today.getTime() - logDate.getTime();
+                const dayDiff = timeDiff / (1000 * 3600 * 24);
+                if (dayDiff >= 0 && dayDiff <= 7) {
+                    matchRange = true;
+                }
+            }
+
+            if (matchRange) {
+                historyLog[dateStr].forEach(task => {
+                    // Only sum tasks that were marked checked/completed
+                    if (task.completed && task.durationMinutes) {
+                        if (summarySheet[task.name] !== undefined) {
+                            summarySheet[task.name] += task.durationMinutes;
+                        } else {
+                            summarySheet[task.name] = task.durationMinutes;
+                        }
+                    }
+                });
+            }
+        });
+
+        const loggedItems = Object.keys(summarySheet);
+        if (loggedItems.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;"><i>No master tasks created yet to calculate sheet properties.</i></td></tr>`;
+            return;
+        }
+
+        loggedItems.forEach(taskName => {
+            const mins = summarySheet[taskName];
+            const timePhrase = mins > 0 ? formatMinutesToText(mins) : "0m logged";
+            const badgeLabel = mins > 0 ? `<span class="duration-badge" style="background:#e8f5e9; color:#2e7d32;">Active</span>` : `<span class="time-badge">Unused</span>`;
+
+            tbody.innerHTML += `
+                <tr>
+                    <td><strong>${taskName}</strong></td>
+                    <td>${timePhrase}</td>
+                    <td>${badgeLabel}</td>
+                </tr>
+            `;
+        });
+    }
+
+    init();
+</script>
+
+</body>
+</html>
